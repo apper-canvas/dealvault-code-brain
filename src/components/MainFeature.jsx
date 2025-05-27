@@ -113,8 +113,257 @@ function MainFeature() {
       count: deals.filter(deal => deal.category === cat).length
     }))
     .sort((a, b) => b.count - a.count)[0]?.category || 'None';
+  // Chart data and processing functions
+  const getMonthlySpendingData = () => {
+    const monthlyData = {};
+    const last12Months = [];
+    
+    // Generate last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = format(date, 'yyyy-MM');
+      const monthLabel = format(date, 'MMM yyyy');
+      last12Months.push({ key: monthKey, label: monthLabel });
+      monthlyData[monthKey] = 0;
+    }
+    
+    // Aggregate spending by month
+    deals.forEach(deal => {
+      const monthKey = format(new Date(deal.purchaseDate), 'yyyy-MM');
+      if (monthlyData.hasOwnProperty(monthKey)) {
+        monthlyData[monthKey] += deal.amount;
+      }
+    });
+    
+    return {
+      categories: last12Months.map(m => m.label),
+      series: [{
+        name: 'Monthly Spending',
+        data: last12Months.map(m => monthlyData[m.key])
+      }]
+    };
+  };
 
-  // Chart data
+  const getPlatformSpendingData = () => {
+    const platformData = {};
+    platforms.forEach(platform => {
+      platformData[platform] = deals
+        .filter(deal => deal.seller === platform)
+        .reduce((sum, deal) => sum + deal.amount, 0);
+    });
+    
+    return {
+      categories: platforms,
+      series: [{
+        name: 'Total Spending',
+        data: platforms.map(platform => platformData[platform])
+      }]
+    };
+  };
+
+  const getCategoryTrendsData = () => {
+    const last6Months = [];
+    const categoryTrends = {};
+    
+    // Generate last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = format(date, 'yyyy-MM');
+      const monthLabel = format(date, 'MMM yyyy');
+      last6Months.push({ key: monthKey, label: monthLabel });
+    }
+    
+    // Initialize category trends
+    categories.forEach(category => {
+      categoryTrends[category] = {};
+      last6Months.forEach(month => {
+        categoryTrends[category][month.key] = 0;
+      });
+    });
+    
+    // Aggregate spending by category and month
+    deals.forEach(deal => {
+      const monthKey = format(new Date(deal.purchaseDate), 'yyyy-MM');
+      if (categoryTrends[deal.category] && categoryTrends[deal.category].hasOwnProperty(monthKey)) {
+        categoryTrends[deal.category][monthKey] += deal.amount;
+      }
+    });
+    
+    return {
+      categories: last6Months.map(m => m.label),
+      series: categories.map((category, index) => ({
+        name: category,
+        data: last6Months.map(m => categoryTrends[category][m.key])
+      }))
+    };
+  };
+
+  // Chart options
+  const lineChartOptions = {
+    chart: {
+      type: 'line',
+      toolbar: { show: false },
+      zoom: { enabled: false }
+    },
+    colors: ['#6366f1'],
+    stroke: {
+      curve: 'smooth',
+      width: 3
+    },
+    markers: {
+      size: 6,
+      colors: ['#6366f1'],
+      strokeColors: '#fff',
+      strokeWidth: 2
+    },
+    grid: {
+      borderColor: '#e2e8f0',
+      strokeDashArray: 5
+    },
+    xaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        },
+        formatter: (value) => `$${value.toFixed(0)}`
+      }
+    },
+    tooltip: {
+      theme: 'light',
+      y: {
+        formatter: (value) => `$${value.toFixed(2)}`
+      }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: {
+        chart: { height: 200 }
+      }
+    }]
+  };
+
+  const barChartOptions = {
+    chart: {
+      type: 'bar',
+      toolbar: { show: false }
+    },
+    colors: ['#10b981'],
+    plotOptions: {
+      bar: {
+        borderRadius: 8,
+        horizontal: false,
+        columnWidth: '60%'
+      }
+    },
+    grid: {
+      borderColor: '#e2e8f0',
+      strokeDashArray: 5
+    },
+    xaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        },
+        rotate: -45
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        },
+        formatter: (value) => `$${value.toFixed(0)}`
+      }
+    },
+    tooltip: {
+      theme: 'light',
+      y: {
+        formatter: (value) => `$${value.toFixed(2)}`
+      }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: {
+        chart: { height: 200 },
+        plotOptions: {
+          bar: {
+            columnWidth: '80%'
+          }
+        }
+      }
+    }]
+  };
+
+  const stackedBarOptions = {
+    chart: {
+      type: 'bar',
+      stacked: true,
+      toolbar: { show: false }
+    },
+    colors: ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'],
+    plotOptions: {
+      bar: {
+        borderRadius: 4,
+        horizontal: false,
+        columnWidth: '70%'
+      }
+    },
+    grid: {
+      borderColor: '#e2e8f0',
+      strokeDashArray: 5
+    },
+    xaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        },
+        formatter: (value) => `$${value.toFixed(0)}`
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '12px'
+    },
+    tooltip: {
+      theme: 'light',
+      y: {
+        formatter: (value) => `$${value.toFixed(2)}`
+      }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: {
+        chart: { height: 200 },
+        legend: {
+          position: 'bottom'
+        }
+      }
+    }]
+  };
+
   const chartOptions = {
     chart: { 
       type: 'donut',
@@ -135,6 +384,11 @@ function MainFeature() {
     .map(cat => deals.filter(deal => deal.category === cat).reduce((sum, deal) => sum + deal.amount, 0));
   
   const categoryLabels = [...new Set(deals.map(deal => deal.category))];
+
+  // Get chart data
+  const monthlySpending = getMonthlySpendingData();
+  const platformSpending = getPlatformSpendingData();
+  const categoryTrends = getCategoryTrendsData();
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: 'BarChart3' },
@@ -215,7 +469,6 @@ function MainFeature() {
                 </motion.div>
               ))}
             </div>
-
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Spending by Category Chart */}
@@ -282,6 +535,112 @@ function MainFeature() {
                 </div>
               </motion.div>
             </div>
+
+            {/* Advanced Analytics Section */}
+            <div className="space-y-6 md:space-y-8">
+              {/* Monthly Spending Trends */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="metric-card"
+              >
+                <h3 className="text-lg md:text-xl font-semibold text-surface-800 dark:text-surface-200 mb-4 md:mb-6">
+                  Monthly Spending Trends
+                </h3>
+                {deals.length > 0 ? (
+                  <Chart
+                    options={{
+                      ...lineChartOptions,
+                      xaxis: {
+                        ...lineChartOptions.xaxis,
+                        categories: monthlySpending.categories
+                      }
+                    }}
+                    series={monthlySpending.series}
+                    type="line"
+                    height={300}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-surface-500 dark:text-surface-400">
+                    <div className="text-center">
+                      <ApperIcon name="TrendingUp" className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No spending data to display</p>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Platform and Category Analysis */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {/* Platform Spending Comparison */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="metric-card"
+                >
+                  <h3 className="text-lg md:text-xl font-semibold text-surface-800 dark:text-surface-200 mb-4 md:mb-6">
+                    Platform Spending
+                  </h3>
+                  {deals.length > 0 ? (
+                    <Chart
+                      options={{
+                        ...barChartOptions,
+                        xaxis: {
+                          ...barChartOptions.xaxis,
+                          categories: platformSpending.categories
+                        }
+                      }}
+                      series={platformSpending.series}
+                      type="bar"
+                      height={300}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-surface-500 dark:text-surface-400">
+                      <div className="text-center">
+                        <ApperIcon name="BarChart3" className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No platform data available</p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Category Trends Over Time */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="metric-card"
+                >
+                  <h3 className="text-lg md:text-xl font-semibold text-surface-800 dark:text-surface-200 mb-4 md:mb-6">
+                    Category Trends (6 Months)
+                  </h3>
+                  {deals.length > 0 ? (
+                    <Chart
+                      options={{
+                        ...stackedBarOptions,
+                        xaxis: {
+                          ...stackedBarOptions.xaxis,
+                          categories: categoryTrends.categories
+                        }
+                      }}
+                      series={categoryTrends.series}
+                      type="bar"
+                      height={300}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-surface-500 dark:text-surface-400">
+                      <div className="text-center">
+                        <ApperIcon name="BarChart4" className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No category trends to display</p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+
           </motion.div>
         )}
 
